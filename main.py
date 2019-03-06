@@ -62,12 +62,6 @@ class StringParser:
     def NextToken(self):
         if self.error:
             return Token().operator(OPERATOR.INVALID)
-        if self.pointer>=len(self.string):
-            if self.expectNumeric:
-                    self.error="String expected to end in a number."
-                    return Token().operator(OPERATOR.INVALID)
-            return Token().operator(OPERATOR.NONE)
-        ret=Token().operator(OPERATOR.NONE)
         substring=""
         firstCharacter=True
         isFloat=False
@@ -75,8 +69,8 @@ class StringParser:
             C=self.string[i]
             if firstCharacter:
                 if C==" ":
-                    continue
-                if C=="(":
+                    pass
+                elif C=="(":
                     self.brackets+=1
                 elif C==")":
                     self.brackets-=1
@@ -92,8 +86,9 @@ class StringParser:
                     if not C in lookup:
                         self.error="Invalid operator at character: " + str(i)
                         return Token().operator(OPERATOR.INVALID)
-                    ret.operator(lookup[C]).brackets(self.brackets)
-                    break
+                    self.expectNumeric=True
+                    self.pointer=i+1;
+                    return Token().operator(lookup[C]).brackets(self.brackets)
                 elif C=="-":
                     if i==len(self.string)-1 or not self.string[i+1] in "1234567890.":
                         self.error="Stray minus sign at character: " + str(i)
@@ -113,23 +108,24 @@ class StringParser:
                 elif C in "1234567890":
                     substring+=C
                 else:
-                    i-=1;
+                    i-=1
                     break
-        self.pointer=i+1;
-        if self.expectNumeric:
-            self.expectNumeric=False
-            try:
-                if isFloat:
-                    return ret.numeric(float(substring))
-                else:
-                    return ret.numeric(int(substring))
-            except ValueError:
-                print(substring)
-                self.error="Expected number at character: " + str(i)
+        if firstCharacter:
+            if self.brackets!=0:
+                self.error="Bracket counting error."
                 return Token().operator(OPERATOR.INVALID)
-        else:
-            self.expectNumeric=True
-            return ret
+            return Token().operator(OPERATOR.NONE)
+        self.pointer=i+1;
+        self.expectNumeric=False
+        try:
+            if isFloat:
+                return Token().numeric(float(substring))
+            else:
+                return Token().numeric(int(substring))
+        except ValueError:
+            print(substring)
+            self.error="Expected number at character: " + str(i)
+            return Token().operator(OPERATOR.INVALID)
 
 class Expression:
     def __init__(self, string):
